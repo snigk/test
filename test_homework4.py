@@ -1,5 +1,7 @@
 import unittest
 import numpy
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from numpy import array, linspace, pi, sin, exp, zeros, ones, double
