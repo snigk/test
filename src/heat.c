@@ -109,22 +109,50 @@ void heat_parallel(double* uk, double dx, size_t Nx, double dt, size_t Nt,
   /*
 	START IMPLEMENT YOUR SOLUTON HERE ZONE
   */
-  for (size_t step=0; step<Nt; ++step)
+  // keeping track of which process is left and right of the current one,
+  // which is as god intended
+//  int left_process(rank-1 + size) % size;
+//  int right_process(rank+1) % size;
+// ok this part will basically send your rank -1 to your rank
+    if ( 0 < rank )
     {
-      /*
-        Your tasks:
-
-        1) Communicate necessary boundary data
-
-        2) Solve the heat equation using the Forward Euler method in this part
-        of the domain.
-
-       */
+      MPI_Send ( &uk[1], 1, MPI_DOUBLE, rank-1, 1, MPI_COMM_WORLD );
     }
+// gotta get rank + 1 from size - 1
+    if ( rank < size-1 )
+    {
+      MPI_Recv ( &uk[Nx+1], 1,  MPI_DOUBLE, rank+1, 1, MPI_COMM_WORLD, &stat );
+    }
+    if ( rank < size-1 )
+    {
+      MPI_Send ( &uk[Nx], 1, MPI_DOUBLE, rank+1, 2, MPI_COMM_WORLD );
+    }
+    if ( 0 < rank )
+    {
+      MPI_Recv ( &uk[0], 1, MPI_DOUBLE, rank-1, 2, MPI_COMM_WORLD, &stat );
+    }
+/*
+  // basically you just want to make ghost cells that hold onto the ut calculation within each block at the right of the left
+  // and then do a wraparound that feeds it?
+  */
+      for (size_t step=0; step<Nt; ++step)
+        {
+          uktp1[step] = ukt[step] + nu*(ukt[step-1] - 2*ukt[step] + ukt[step+1]);
+
+          /*
+            Your tasks:
+
+            1) Communicate necessary boundary data
+
+            2) Solve the heat equation using the Forward Euler method in this part
+            of the domain.
+
+           */
+        }
+    // if we actually had boundaries we'd probably need to recompute them
   /*
 	END IMPLEMENT YOUR SOLUTION HERE ZONE
    */
-
   // copy contents of solution, stored in `ut` to the input chunk `uk`. that is,
   // the location pointed to by `uk` now contains the data after iteration.
   array_copy(uk, ukt, Nx);
