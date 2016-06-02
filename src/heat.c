@@ -109,47 +109,46 @@ void heat_parallel(double* uk, double dx, size_t Nx, double dt, size_t Nt,
   /*
 	START IMPLEMENT YOUR SOLUTON HERE ZONE
   */
-  // keeping track of which process is left and right of the current one,
-  // which is as god intended
-//  int left_process(rank-1 + size) % size;
-//  int right_process(rank+1) % size;
-// ok this part will basically send your rank -1 to your rank
-    if ( 0 < rank )
+
+  for (size_t step=0; step<Nt; ++step)
     {
-      MPI_Send ( &uk[1], 1, MPI_DOUBLE, rank-1, 1, MPI_COMM_WORLD );
-    }
-// gotta get rank + 1 from size - 1
-    if ( rank < size-1 )
-    {
-      MPI_Recv ( &uk[Nx+1], 1,  MPI_DOUBLE, rank+1, 1, MPI_COMM_WORLD, &stat );
-    }
-    if ( rank < size-1 )
-    {
-      MPI_Send ( &uk[Nx], 1, MPI_DOUBLE, rank+1, 2, MPI_COMM_WORLD );
-    }
-    if ( 0 < rank )
-    {
-      MPI_Recv ( &uk[0], 1, MPI_DOUBLE, rank-1, 2, MPI_COMM_WORLD, &stat );
-    }
-/*
-  // basically you just want to make ghost cells that hold onto the ut calculation within each block at the right of the left
-  // and then do a wraparound that feeds it?
-  */
-      for (size_t step=0; step<Nt; ++step)
+        if ( 0 < rank )
         {
-          uktp1[step] = ukt[step] + nu*(ukt[step-1] - 2*ukt[step] + ukt[step+1]);
-
-          /*
-            Your tasks:
-
-            1) Communicate necessary boundary data
-
-            2) Solve the heat equation using the Forward Euler method in this part
-            of the domain.
-
-           */
+          MPI_Send ( &ukt[1], 1, MPI_DOUBLE, rank-1, 1, MPI_COMM_WORLD);
         }
-    // if we actually had boundaries we'd probably need to recompute them
+        if ( rank < size-1 )
+        {
+          MPI_Recv ( &ukt[Nt+1], 1,  MPI_DOUBLE, rank+1, 1, MPI_COMM_WORLD, &stat );
+        }
+        if ( rank < size-1 )
+        {
+          MPI_Send ( &ukt[Nt], 1, MPI_DOUBLE, rank+1, 2, MPI_COMM_WORLD );
+        }
+        if ( 0 < rank )
+        {
+          MPI_Recv ( &ukt[0], 1, MPI_DOUBLE, rank-1, 2, MPI_COMM_WORLD, &stat );
+        }
+      // update using Forward Euler
+      for (size_t i=1; i<(Nx-1); ++i)
+        uktp1[i] = ukt[i] + nu*(ukt[i-1] - 2*ukt[i] + ukt[i+1]);
+
+      // handle periodic boundary conditions: that is, assume a "wrap-around"
+      // from the left edge of the boundary to the right edge
+//       uktp1[0] = ukt[0] + nu*(ukt[Nx-1] - 2*ukt[0] + ukt[1]);
+//       uktp1[Nx-1] = ukt[Nx-1] + nu*(ukt[Nx-2] - 2*ukt[Nx-1] + ukt[0]);
+
+      // iterate: here we use some pointer arithmetic trickery to make `ut`
+      // point to the newly-generated data and make `utp1` point to the old data
+      // (which we will write over in the next iteration)
+      //
+      // again: `ut`, `utp1`, and `temp` are just pointers to location in
+      // memory. this is a really cheap way to "swap" array data. though,
+      // depending on what you're doing you need to be careful.
+      temp = ukt;
+      ukt = uktp1;
+      uktp1 = temp;
+    }
+
   /*
 	END IMPLEMENT YOUR SOLUTION HERE ZONE
    */

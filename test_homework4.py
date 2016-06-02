@@ -240,7 +240,7 @@ if __name__ == '__main__':
     #     $ python test_homework4.py
     #
     # (Comment this out when running parallel tests. See below.)
-    plot_example_serial(chunks=3, Nt=100)
+    # plot_example_serial(chunks=3, Nt=100)
 
     ###################################################
     # RUN THE TESTS AND PARALLEL PLOT BELOW USING MPI #
