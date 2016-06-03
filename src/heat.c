@@ -112,28 +112,62 @@ void heat_parallel(double* uk, double dx, size_t Nx, double dt, size_t Nt,
 
   for (size_t step=0; step<Nt; ++step)
     {
+
+        double left_ghost, right_ghost = ukt[Nx-1];
+        double left_spirit, right_spirit = ukt[Nx+1];
+        int left_process = (rank-1+size) % size;
+        int right_process = (rank+1) % size;
+          if ( 0 == rank )
+          {
+          MPI_Isend ( &right_ghost, 1, MPI_DOUBLE, right_process, 1, MPI_COMM_WORLD, &req);
+          MPI_Recv ( &left_spirit, 1, MPI_DOUBLE, right_process, 2, MPI_COMM_WORLD, &stat );
+          }
+          if ( rank == size-1 )
+          {
+          MPI_Irecv ( &left_ghost, 1,  MPI_DOUBLE, left_process, 1, MPI_COMM_WORLD, &req );
+          MPI_Send ( &right_spirit, 1, MPI_DOUBLE, left_process, 2, MPI_COMM_WORLD );
+          }
+/*        
         if ( 0 < rank )
         {
-          MPI_Send ( &ukt[1], 1, MPI_DOUBLE, rank-1, 1, MPI_COMM_WORLD);
+          MPI_Send ( &ukt[1], 1, MPI_DOUBLE, rank-1, 1, MPI_COMM_WORLD );
         }
         if ( rank < size-1 )
         {
           MPI_Recv ( &ukt[Nt+1], 1,  MPI_DOUBLE, rank+1, 1, MPI_COMM_WORLD, &stat );
         }
+
         if ( rank < size-1 )
         {
           MPI_Send ( &ukt[Nt], 1, MPI_DOUBLE, rank+1, 2, MPI_COMM_WORLD );
         }
+
         if ( 0 < rank )
         {
           MPI_Recv ( &ukt[0], 1, MPI_DOUBLE, rank-1, 2, MPI_COMM_WORLD, &stat );
         }
+*/
       // update using Forward Euler
       for (size_t i=1; i<(Nx-1); ++i)
         uktp1[i] = ukt[i] + nu*(ukt[i-1] - 2*ukt[i] + ukt[i+1]);
 
+
+      uktp1[0] = left_ghost;
+      right_ghost = uktp1[Nx-1];
+      uktp1[Nx-1] = right_spirit;
+      left_spirit = uktp1[Nx-2];
+
+
       // handle periodic boundary conditions: that is, assume a "wrap-around"
       // from the left edge of the boundary to the right edge
+//    if ( 0 == rank )
+//    {
+//      uktp1[0] =  ukt[0] + nu*(ukt[Nx-1] - 2*ukt[0] + ukt[1]);
+//    }
+//    if ( rank == size - 1 )
+//    {
+//      uktp1[Nx-1] = right_ghost;
+//    }
 //       uktp1[0] = ukt[0] + nu*(ukt[Nx-1] - 2*ukt[0] + ukt[1]);
 //       uktp1[Nx-1] = ukt[Nx-1] + nu*(ukt[Nx-2] - 2*ukt[Nx-1] + ukt[0]);
 
