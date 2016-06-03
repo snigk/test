@@ -171,8 +171,10 @@ def plot_example_serial_and_parallel(Nt=100):
     N = 96               # number x,u-points in entire domain
     Nx = N // comm.size  # number x,u-points in each process's chunk
     dx = 1.0/(N+1)       # step size in x-domain
-    dt = 0.4*dx**2       # must be <= 0.5*dx**2 or else F.E. is unstable
-
+    dt = 0.505*dx**2       # must be <= 0.5*dx**2 or else F.E. is unstable
+    Nt2 = 200
+    Nt3 = 300
+    Nt4 = 400
     u_parallel = example_parallel_solution(dx, N, dt, Nt, comm)
 
     # have only process 0 compute the serial solution and plot
@@ -190,12 +192,12 @@ def plot_example_serial_and_parallel(Nt=100):
         plt.plot(u_parallel, 'r-', label='Parallel Solution')
         plt.legend()
         plt.title('Parallel Heat Equation Solution $dx=%.2e \; dt=%.2e \; N_t=%d$'%(dx,dt,Nt),
-                  fontsize=14)
-        plt.xlabel('$x$', fontsize=20)
-        plt.ylabel('$u$', fontsize=20)
+                  fontsize=10)
+        plt.xlabel('$x$', fontsize=10)
+        plt.ylabel('$u$', fontsize=10)
 
         print 'plot_example_serial_and_parallel() --- saving to parallel_heat.png ...'
-        plt.savefig('./parallel_heat.png')
+        plt.savefig('./parallel_heat_2_3.png')
 
 def plot_example_serial(chunks=3, Nt=100):
     r"""

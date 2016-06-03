@@ -112,52 +112,38 @@ void heat_parallel(double* uk, double dx, size_t Nx, double dt, size_t Nt,
   */
 
   printf("\n[%d] Data array:\n", rank);
-  double left_ghost, right_ghost = ukt[Nx-1];
-  double left_spirit, right_spirit = ukt[Nx+1];
+  double left_ghost, right_ghost;
+  double left_spirit, right_spirit;
   int left_process = (rank-1+size) % size;
   int right_process = (rank+1) % size;
 
 
   for (size_t step=0; step<Nt; ++step)
     {
-
+      right_ghost = ukt[Nx-1];
+      left_spirit = ukt[0];
       printf("shift:%ld [%d -> %d] sending boundary data = %f\n", step, rank, right_process, right_ghost);
       MPI_Isend ( &right_ghost, 1, MPI_DOUBLE, right_process, 1, MPI_COMM_WORLD, &req);
       printf("shift:%ld [%d -> %d] sending boundary data = %f\n", step, rank, left_process, left_spirit);
       MPI_Isend ( &left_spirit, 1, MPI_DOUBLE, left_process, 2, MPI_COMM_WORLD, &req );
-
+      MPI_Barrier(MPI_COMM_WORLD);
+      fflush(stdout);
       // update using Forward Euler
       for (size_t i=1; i<(Nx-1); ++i)
         uktp1[i] = ukt[i] + nu*(ukt[i-1] - 2*ukt[i] + ukt[i+1]);
 
-      MPI_Recv ( &right_spirit, 1, MPI_DOUBLE, right_process, 2, MPI_COMM_WORLD, &stat );
+      printf("shift:%ld [%d -> %d] recieving boundary data = %f\n", step, rank, right_process, right_spirit);
       MPI_Recv ( &left_ghost, 1,  MPI_DOUBLE, left_process, 1, MPI_COMM_WORLD, &stat );
+      printf("shift:%ld [%d -> %d] recieving boundary data = %f\n", step, rank, left_process, left_ghost);
+      MPI_Recv ( &right_spirit, 1, MPI_DOUBLE, right_process, 2, MPI_COMM_WORLD, &stat );
+      MPI_Wait(&req, &stat);
       uktp1[0] = ukt[0] + nu*(left_ghost - 2*ukt[0] + ukt[1]);
-      right_ghost = uktp1[Nx-1];
       uktp1[Nx-1] = ukt[Nx-1] + nu*(ukt[Nx-2] - 2*ukt[Nx-1] + right_spirit);
-      left_spirit = uktp1[Nx-2];
+      MPI_Barrier(MPI_COMM_WORLD);
+      fflush(stdout);
 
-
-      // handle periodic boundary conditions: that is, assume a "wrap-around"
-      // from the left edge of the boundary to the right edge
-//    if ( 0 == rank )
-//    {
-//      uktp1[0] =  ukt[0] + nu*(ukt[Nx-1] - 2*ukt[0] + ukt[1]);
-//    }
-//    if ( rank == size - 1 )
-//    {
-//      uktp1[Nx-1] = right_ghost;
-//    }
-//       uktp1[0] = ukt[0] + nu*(ukt[Nx-1] - 2*ukt[0] + ukt[1]);
-//       uktp1[Nx-1] = ukt[Nx-1] + nu*(ukt[Nx-2] - 2*ukt[Nx-1] + ukt[0]);
-
-      // iterate: here we use some pointer arithmetic trickery to make `ut`
-      // point to the newly-generated data and make `utp1` point to the old data
-      // (which we will write over in the next iteration)
-      //
-      // again: `ut`, `utp1`, and `temp` are just pointers to location in
-      // memory. this is a really cheap way to "swap" array data. though,
-      // depending on what you're doing you need to be careful.
+      right_ghost = uktp1[Nx-1];
+      left_spirit = uktp1[0];
       temp = ukt;
       ukt = uktp1;
       uktp1 = temp;
