@@ -1,0 +1,3 @@
+NAME=Kanuparthy-Snigdha
+BUILD=pass
+TEST=pass
